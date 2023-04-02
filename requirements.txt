@@ -2,3 +2,6 @@ tensorflow==2.7.0
 keras==2.7.0
 streamlit==1.2.0
 opencv-python-headless==4.5.5.62
+yolov3-tf2==0.5
+seaborn
+keras-resnet

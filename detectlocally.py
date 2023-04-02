@@ -1,57 +1,46 @@
 import cv2
-import numpy as np
-from keras.models import load_model
+import tensorflow as tf
 
-# load the smoke detection model
-model = load_model('smoke_detection_model.h5')
+# Load the trained model
+model = tf.keras.models.load_model('smoke_detection_model.h5')
 
-# define a function to apply the smoke detection model to a single frame
-def detect_smoke(frame):
-    # resize the frame to match the input size of the model
+# Load the video
+cap = cv2.VideoCapture('smoke.mp4')
+
+# Define a function to preprocess each frame of the video
+def preprocess_frame(frame):
+    # Resize the frame to the input size of the model (224x224)
     resized_frame = cv2.resize(frame, (224, 224))
-    
-    # convert the frame to a batch of size 1 and normalize the pixel values
-    batch = np.expand_dims(resized_frame, axis=0) / 255.0
-    
-    # apply the model to the batch and get the predicted class
-    prediction = model.predict(batch)[0][0]
-    predicted_class = int(np.round(prediction))
-    
-    # if the predicted class is 1, then smoke is present in the frame
-    if predicted_class == 1:
-        return True
-    else:
-        return False
+    # Convert the image to a format that can be used by the model (float32 array)
+    input_image = resized_frame.astype('float32') / 255.0
+    # Add an extra dimension to the input to match the input shape of the model (batch size of 1)
+    input_image = tf.expand_dims(input_image, axis=0)
+    return input_image
 
-# prompt the user to enter the path of the video file
-video_path = input("Enter the path of the video file: ")
-
-# open the video file using OpenCV
-cap = cv2.VideoCapture(video_path)
-
-# loop over the frames of the video
-while cap.isOpened():
-    # read a single frame from the video
+# Loop through each frame of the video
+while True:
     ret, frame = cap.read()
-    
-    # if the frame was read successfully, then apply the smoke detection model to it
-    if ret:
-        # apply the smoke detection model to the frame
-        is_smoke = detect_smoke(frame)
-        
-        # if smoke is present, then draw a red bounding box around the detected smoke
-        if is_smoke:
-            cv2.rectangle(frame, (0, 0), (frame.shape[1], frame.shape[0]), (0, 0, 255), 2)
-        
-        # display the frame
-        cv2.imshow('frame', frame)
-        
-        # wait for a key press and exit the loop if the user presses the 'q' key
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    else:
+    if not ret:
         break
 
-# release the video file and close all windows
+    # Preprocess the frame
+    input_image = preprocess_frame(frame)
+
+    # Run the model on the input image
+    prediction = model.predict(input_image)[0][0]
+
+    # Print the prediction score for debugging purposes
+    print(f"Prediction score: {prediction}")
+
+    # If the prediction is greater than a threshold value (e.g. 0.1), draw a rectangle around the detected area
+    if prediction > 0.1:
+        cv2.rectangle(frame, (0, 0), (224, 224), (0, 0, 255), 2)
+
+    # Show the resulting frame
+    cv2.imshow('Smoke Detection', frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the video capture and close all windows
 cap.release()
 cv2.destroyAllWindows()
